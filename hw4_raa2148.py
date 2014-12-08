@@ -188,6 +188,7 @@ def bt_search(sudoku):
 			for j in COL:
 				# Find neighbors
 				neighbors = get_neighbors(i+j)
+				
 				results[i+j] = []
 
 				# Iterate through neighbors to find assigned values, add as constraint
@@ -238,22 +239,35 @@ def bt_search(sudoku):
 		for ct in srtd_cts:
 			ordered_vals.append(ct[0])
 
+		print srtd_cts
+
 		return ordered_vals
 
 	# Forward Checking
 	def chk_fwd(var, val):
 		# Get neighbors
 		neighbors = get_neighbors(var)
+		changed_neighbors = []
 
 		# Iterate through neighbors and remove selected val
 		for nbr in neighbors:
 			if val in values[nbr]:
 				values[nbr].remove(val)
+				changed_neighbors.append(nbr)
+				if len(values[nbr]) == 0:
+					return [changed_neighbors, True]
+
+		return [changed_neighbors, False]
+
+	# Reverse forward checking during backtracking
+	def rev_fwd_chk(variables, val):
+		for nbr in variables:
+			values[nbr].append(val)
 
 	# Check if val is consistent for var
 	def consistent(var, val):
 		return val not in constraints[var]
-
+		
 	# Recursively call algo
 	def recursive_bt(assignment, sudoku):
 		if complete(assignment): return assignment
@@ -263,12 +277,22 @@ def bt_search(sudoku):
 		for val in order_dom_vals(var, assignment, sudoku):
 			if consistent(var, val):
 				assignment[var] = val
-				chk_fwd(var, val)
-				result = recursive_bt(assignment, sudoku)
+
+				# Save the neighbors changed by assignment
+				chgd_nbrs = chk_fwd(var, val)
+
+				# If no domain is wiped out
+				if not chgd_nbrs[1]:
+					result = recursive_bt(assignment, sudoku)
+
 				if result != "failure":
 					return result
+				# Remove value from assignment
 				assignment.pop(var, None)
-			return "failure"
+				# Reverse the effects of fwd_check
+				rev_fwd_chk(chgd_nbrs[0], val)
+			
+		return "failure"
 
 	## Execute bt_search ##
 
@@ -280,7 +304,7 @@ def bt_search(sudoku):
 	for var in get_vars(sudoku):
 		values[var] = range(1,10)
 
-	# Assign values for given squares
+	#Assign values for given squares
 	for i in ROW:
 		for j in COL:
 			if sudoku[i+j] != 0:
